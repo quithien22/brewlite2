@@ -29,11 +29,15 @@ Cách đọc: ô `—` nghĩa là **chưa có**. Các ô này là khoảng trố
 
 | Mã | Tệp | Trạng thái |
 |---|---|---|
-| Sequence-01a | `docs/diagrams/sequence-checkout-01a.puml` / `.svg` (POST /orders) | Có |
-| Sequence-01b | `docs/diagrams/sequence-checkout-01b.puml` / `.svg` (POST /payments) | Có |
-| Activity-01a, Activity-01b | `docs/diagrams/activity-checkout-*.svg` | **Chưa có trong repo** |
-| Class-01 | `docs/diagrams/class-domain.mmd` / `.svg` | **Chưa có trong repo** |
-| ADR-001…011 | `docs/architecture/adr/*.md` | Có (xem mục 6 về ADR-011) |
+| Sequence-01a | `docs/diagrams/sequence/sequence-checkout-01a.puml` / `.svg` (POST /orders) | Có |
+| Sequence-01b | `docs/diagrams/sequence/sequence-checkout-01b.puml` / `.svg` (POST /payments) | Có |
+| Activity-01a | `docs/diagrams/activity/activity-01a-tu-xem-menu-den-tao-don-hang.puml` / `.svg` | Có |
+| Activity-01b | `docs/diagrams/activity/activity-01b-thanh-toan-xac-nhan-don-hang.puml` / `.svg` | Có |
+| Class-01 | `docs/diagrams/class/class-domain-model.puml` / `.svg` (có `REFUNDED`, `REVOKE`) | Có |
+| UseCase-General | `docs/diagrams/usecase/usecase-tong-quat.puml` / `.svg` | Có (còn vẽ UC-06, UC-07 ngoài phạm vi MVP, xem mục 6) |
+| UseCase-UC01, UseCase-UC02 | `docs/diagrams/usecase/usecase-uc01-dat-thanh-toan.puml`, `brewlite-usecase-uc02-tai-khoan-xac-thuc.puml` (+ `.svg`) | Có |
+| Deployment-01 | `docs/diagrams/deployment-production.puml` / `.svg` | **Chưa có trong repo** |
+| ADR-001…011 | `docs/architecture/adr/*.md` | Có (ADR-011 là AWS EC2; hướng dẫn Render cũ giữ ở `docs/deployment-render.md`) |
 
 ### 1.3 Test
 
