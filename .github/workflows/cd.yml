@@ -1,7 +1,8 @@
-# CD: quality gate -> build & push image lên GHCR -> SSH vào AWS EC2 chạy deploy/deploy.sh
+# CD: build & push image lên GHCR -> SSH vào AWS EC2 chạy deploy/deploy.sh
 # (pull, up -d, smoke test, tự rollback nếu lỗi). Xem docs/deployment.md, mục 3 và 7.
 # Cần đặt trước: secrets EC2_HOST, EC2_USER, EC2_SSH_KEY; variables PROD_API_URL, PROD_ALLOW_MOCK_FAILURE;
-# environment "production". Chưa có hạ tầng thì job deploy sẽ lỗi (job quality và build vẫn chạy được).
+# environment "production", variable DEPLOY_ENABLED=true. Lint/test/build chạy ở ci.yml (pull request).
+# Chưa đặt DEPLOY_ENABLED thì job deploy bị bỏ qua, chỉ build và push image.
 name: CD
 
 on:
@@ -23,29 +24,7 @@ env:
   IMAGE_WEB: ghcr.io/quithien22/brewlite-web
 
 jobs:
-  quality:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-      - name: API
-        working-directory: apps/api
-        run: |
-          npm ci
-          npx prisma generate
-          npm test
-          npm run build
-      - name: Web
-        working-directory: apps/web
-        run: |
-          npm ci
-          npm run lint
-          npm run build
-
   build:
-    needs: quality
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
@@ -82,6 +61,7 @@ jobs:
             NEXT_PUBLIC_ALLOW_MOCK_FAILURE=${{ vars.PROD_ALLOW_MOCK_FAILURE }}
 
   deploy:
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     needs: build
     runs-on: ubuntu-latest
     environment: production
