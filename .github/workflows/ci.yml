@@ -2,7 +2,7 @@
 # Nên đặt các job api / web / e2e làm "required status check" trong branch protection
 # để pull request không merge được khi lint, test hoặc build thất bại.
 
-name: Node.js CI
+name: CI
 
 on:
   push:

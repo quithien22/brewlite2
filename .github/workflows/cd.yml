@@ -1,0 +1,113 @@
+# CD: quality gate -> build & push image lên GHCR -> SSH vào AWS EC2 chạy deploy/deploy.sh
+# (pull, up -d, smoke test, tự rollback nếu lỗi). Xem docs/deployment.md, mục 3 và 7.
+# Cần đặt trước: secrets EC2_HOST, EC2_USER, EC2_SSH_KEY; variables PROD_API_URL, PROD_ALLOW_MOCK_FAILURE;
+# environment "production". Chưa có hạ tầng thì job deploy sẽ lỗi (job quality và build vẫn chạy được).
+name: CD
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_API: ghcr.io/quithien22/brewlite-api
+  IMAGE_WEB: ghcr.io/quithien22/brewlite-web
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: API
+        working-directory: apps/api
+        run: |
+          npm ci
+          npx prisma generate
+          npm test
+          npm run build
+      - name: Web
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+
+  build:
+    needs: quality
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build và push API
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api
+          push: true
+          tags: ${{ env.IMAGE_API }}:${{ steps.tag.outputs.tag }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+      - name: Build và push Web
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/web
+          push: true
+          tags: ${{ env.IMAGE_WEB }}:${{ steps.tag.outputs.tag }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.PROD_API_URL }}
+            NEXT_PUBLIC_ALLOW_MOCK_FAILURE=${{ vars.PROD_ALLOW_MOCK_FAILURE }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      IMAGE_TAG: ${{ needs.build.outputs.tag }}
+      GH_ACTOR: ${{ github.actor }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cấu hình SSH
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+      - name: Gửi cấu hình lên server
+        run: |
+          scp -r docker-compose.prod.yml nginx deploy/deploy.sh "$EC2_USER@$EC2_HOST:brewlite/"
+      - name: Đăng nhập GHCR trên server
+        run: |
+          printf '%s' "$GH_TOKEN" | ssh "$EC2_USER@$EC2_HOST" \
+            "docker login ghcr.io -u '$GH_ACTOR' --password-stdin"
+      - name: Deploy, smoke test, tự rollback nếu lỗi
+        run: |
+          ssh "$EC2_USER@$EC2_HOST" "chmod +x ~/brewlite/deploy.sh && ~/brewlite/deploy.sh '$IMAGE_TAG'"
