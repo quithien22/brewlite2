@@ -7,11 +7,11 @@ import { btnOutline, btnPrimary, container } from "@/components/ui/classes";
 import ProductImage from "@/components/ui/ProductImage";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { api } from "@/lib/api";
+import { addToCart } from "@/lib/cart-hold";
 import { vnd } from "@/lib/format";
 import { useApi } from "@/lib/hooks";
 import type { ProductDetail, SizeCode } from "@/lib/types";
-import { useAuthStore } from "@/store/auth";
-import { MAX_QTY, useCartStore } from "@/store/cart";
+import { MAX_QTY } from "@/store/cart";
 
 // ============================================================================
 // 1. SUB-COMPONENTS (GIAO DIỆN PHỤ TRỢ)
@@ -75,12 +75,14 @@ function Group({ title, children }: GroupProps) {
 
 interface ProductFormProps {
   product: ProductDetail;
+  /** Tải lại tồn kho sau khi giữ hàng. */
+  onStockChange: () => void;
 }
 
-function ProductForm({ product }: ProductFormProps) {
+function ProductForm({ product, onStockChange }: ProductFormProps) {
   const router = useRouter();
-  const addLine = useCartStore((s) => s.addLine);
-  const token = useAuthStore((s) => s.token);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const { sizes, toppings, sugarLevels, iceLevels, defaultSugar, defaultIce } =
     product.options;
@@ -99,10 +101,6 @@ function ProductForm({ product }: ProductFormProps) {
   const [toppingIds, setToppingIds] = useState<number[]>([]);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
-  const [needLogin, setNeedLogin] = useState(false);
-
-  // Sau khi đăng nhập sẽ quay lại đúng trang sản phẩm này
-  const loginHref = `/login?next=${encodeURIComponent(`/menu/detail?id=${product.id}`)}`;
 
   // --- TÍNH TOÁN GIÁ & SỐ LƯỢNG (MEMOIZED) ---
   // Sử dụng Set để kiểm tra topping được chọn nhanh hơn với độ phức tạp O(1)
@@ -144,20 +142,17 @@ function ProductForm({ product }: ProductFormProps) {
   }
 
   /**
-   * Đưa sản phẩm vào giỏ hàng Zustand
-   * Phải đăng nhập mới được thêm vào giỏ: chưa đăng nhập thì hiện thông báo kèm liên kết đăng nhập.
+   * Giữ tồn kho 15 phút ở máy chủ rồi đưa sản phẩm vào giỏ hàng Zustand
+   * Không cần đăng nhập để thêm vào giỏ; đăng nhập được kiểm tra khi đặt hàng (Activity-01a).
    * Lưu ý bảo mật: Backend vẫn bắt buộc phải tính toán lại giá trị thực tế dựa trên DB khi tạo đơn hàng.
    */
-  function add(): boolean {
-    if (isOutOfStock) return false;
+  async function add(): Promise<boolean> {
+    if (isOutOfStock || adding) return false;
+    setAdding(true);
+    setAdded(false);
+    setAddError(null);
 
-    if (!token) {
-      setAdded(false);
-      setNeedLogin(true);
-      return false;
-    }
-
-    addLine({
+    const result = await addToCart({
       productId: product.id,
       name: product.name,
       imageUrl: product.imageUrl,
@@ -168,7 +163,13 @@ function ProductForm({ product }: ProductFormProps) {
       unitPrice,
       qty,
     });
-    setNeedLogin(false);
+    setAdding(false);
+    onStockChange();
+    if (!result.ok) {
+      setAddError(result.message);
+      return false;
+    }
+    setQty(1);
     setAdded(true);
     return true;
   }
@@ -339,17 +340,17 @@ function ProductForm({ product }: ProductFormProps) {
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
-              disabled={isOutOfStock}
-              onClick={add}
+              disabled={isOutOfStock || adding}
+              onClick={() => void add()}
               className={`${btnPrimary} flex-1 disabled:cursor-not-allowed disabled:opacity-50`}
             >
               {!isOutOfStock ? "Thêm vào giỏ hàng" : "Hết hàng"}
             </button>
             <button
               type="button"
-              disabled={isOutOfStock}
-              onClick={() => {
-                if (add()) router.push("/cart");
+              disabled={isOutOfStock || adding}
+              onClick={async () => {
+                if (await add()) router.push("/cart");
               }}
               className={`${btnOutline} flex-1 disabled:cursor-not-allowed disabled:opacity-50`}
             >
@@ -357,26 +358,9 @@ function ProductForm({ product }: ProductFormProps) {
             </button>
           </div>
 
-          {/* Thông báo khi chưa đăng nhập mà bấm thêm vào giỏ */}
-          {needLogin && (
-            <div
-              role="alert"
-              className="flex items-center justify-between gap-2 rounded-lg bg-[#FFF3D6] px-4 py-3 text-sm text-[#8A5A00]"
-            >
-              <span>
-                Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng.{" "}
-                <Link href={loginHref} className="font-bold underline hover:opacity-80">
-                  Đăng nhập
-                </Link>
-              </span>
-              <button
-                type="button"
-                aria-label="Đóng thông báo"
-                onClick={() => setNeedLogin(false)}
-                className="ml-2 font-bold hover:opacity-70"
-              >
-                ✕
-              </button>
+          {addError && (
+            <div role="alert" className="rounded-lg bg-[#FBE7E7] px-4 py-3 text-sm text-danger">
+              {addError}
             </div>
           )}
 
@@ -388,7 +372,7 @@ function ProductForm({ product }: ProductFormProps) {
               className="flex items-center justify-between gap-2 rounded-lg bg-[#E6F3EA] px-4 py-3 text-sm text-[#1E7A43]"
             >
               <span>
-                Đã thêm vào giỏ hàng.{" "}
+                Đã thêm vào giỏ hàng, giữ hàng trong 15 phút.{" "}
                 <Link href="/cart" className="font-bold underline hover:opacity-80">
                   Xem giỏ hàng
                 </Link>
@@ -447,5 +431,5 @@ export default function ProductDetailView({ id }: { id: number }) {
   if (!data) return null;
 
   // Sử dụng key={data.id} để đảm bảo toàn bộ state nội bộ của form được reset sạch sẽ khi id thay đổi
-  return <ProductForm key={data.id} product={data} />;
+  return <ProductForm key={data.id} product={data} onStockChange={reload} />;
 }

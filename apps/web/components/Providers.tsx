@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { api } from "@/lib/api";
+import { startCartHoldWatcher } from "@/lib/cart-hold";
 import { useAuthStore } from "@/store/auth";
 import { useCartStore } from "@/store/cart";
 
@@ -18,6 +19,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           .catch(() => {});
       }
     });
+    // Xóa món hết hạn giữ hàng và đồng bộ giỏ với máy chủ
+    return startCartHoldWatcher();
   }, []);
 
   return <>{children}</>;

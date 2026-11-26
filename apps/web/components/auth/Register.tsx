@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { btnPrimary, input } from "@/components/ui/classes";
 import { api, ApiError } from "@/lib/api";
@@ -32,7 +32,12 @@ const STRENGTH_TEXT = [
 
 export default function Register() {
   const router = useRouter();
+  const params = useSearchParams();
   const setSession = useAuthStore((s) => s.setSession);
+
+  // Quay lại đúng bước đang làm (ví dụ /checkout); chỉ nhận đường dẫn nội bộ
+  const next = params.get("next");
+  const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -77,7 +82,7 @@ export default function Register() {
         password,
       });
       setSession(s.accessToken, s.user);
-      router.replace("/");
+      router.replace(target);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Đã có lỗi xảy ra");
     } finally {
@@ -227,7 +232,10 @@ export default function Register() {
 
             <p className="mt-2 text-center text-sm text-muted">
               Đã có tài khoản?{" "}
-              <Link href="/login" className="font-bold text-brand hover:underline">
+              <Link
+                href={`/login?next=${encodeURIComponent(target)}`}
+                className="font-bold text-brand hover:underline"
+              >
                 Đăng nhập
               </Link>
             </p>

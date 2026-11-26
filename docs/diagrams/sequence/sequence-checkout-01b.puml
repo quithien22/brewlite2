@@ -69,12 +69,12 @@ else Hợp lệ
       PG --> API : SUCCESS + transactionId
       API -> DB : BEGIN; Payment SUCCESS; Order PAID; log;\nLoyaltyTransaction EARN; COMMIT
       API --> UI : 200 success = true (orderId, transactionId)
-      UI --> C : Xóa giỏ, hiển thị màn hình thành công
+      UI --> C : Xóa giỏ, hiển thị màn hình thành công,\nmời nhận đồ uống tại quầy
     else Thanh toán thất bại / quá thời gian
       PG --> API : FAILED + lý do
       API -> DB : BEGIN; Payment FAILED; Order PAYMENT_FAILED; log; COMMIT
       API --> UI : 200 success = false (failureReason)
-      UI --> C : Hiển thị lỗi, nút "Thử lại" (key mới) / "Hủy đơn"
+      UI --> C : Giữ giỏ hàng, hiển thị lỗi,\nnút "Thử lại" (key mới) / "Hủy đơn"
     end
     deactivate PG
   end

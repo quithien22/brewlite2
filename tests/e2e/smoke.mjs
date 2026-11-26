@@ -80,7 +80,7 @@ await step('POST /payments', async () => {
     body: { orderId, method: 'WALLET' },
     headers: { 'Idempotency-Key': key },
   });
-  assert.ok([200, 201].includes(r.status), JSON.stringify(r.data));
+  assert.equal(r.status, 200, JSON.stringify(r.data)); // @HttpCode(200) theo Sequence-01b
   assert.equal(r.data.replayed, false, 'lần gọi đầu không được là replay');
   firstPayment = r.data;
 });
@@ -91,7 +91,7 @@ await step('POST /payments lặp cùng Idempotency-Key không trừ tiền lần
     body: { orderId, method: 'WALLET' },
     headers: { 'Idempotency-Key': key },
   });
-  assert.ok([200, 201].includes(r.status), JSON.stringify(r.data));
+  assert.equal(r.status, 200, JSON.stringify(r.data)); // replay cũng trả 200
   // API cố ý trả replayed:true ở lần gọi lại, nên tách riêng trường này ra
   // rồi mới so sánh phần còn lại (payment, order) phải giống hệt lần đầu.
   const { replayed: firstReplayed, ...first } = firstPayment;

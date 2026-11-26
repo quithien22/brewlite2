@@ -95,6 +95,12 @@ function AccountArea({ variant }: { variant: "dropdown" | "drawer" }) {
             {user.loyaltyPoints.toLocaleString("vi-VN")} điểm
           </span>
         </p>
+        <Link
+          href="/profile"
+          className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-sm font-semibold text-[#2B2118] hover:bg-[#EADCC8]"
+        >
+          Hồ sơ & điểm thưởng
+        </Link>
         <button
           type="button"
           onClick={() => {
@@ -171,9 +177,17 @@ function AccountArea({ variant }: { variant: "dropdown" | "drawer" }) {
             </p>
           </div>
           <Link
+            href="/profile"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="mt-1 block rounded-lg px-3 py-2 text-sm font-semibold text-[#2B2118] hover:bg-[#F5EBDD] transition-colors"
+          >
+            Hồ sơ & điểm thưởng
+          </Link>
+          <Link
             href="/orders"
             role="menuitem"
-            className="mt-1 block rounded-lg px-3 py-2 text-sm font-semibold text-[#2B2118] hover:bg-[#F5EBDD] transition-colors"
+            className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#2B2118] hover:bg-[#F5EBDD] transition-colors"
           >
             Đơn hàng của tôi
           </Link>

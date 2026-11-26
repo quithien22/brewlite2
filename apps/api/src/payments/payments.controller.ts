@@ -18,8 +18,12 @@ import { PaymentsService } from './payments.service';
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
 
-  /** POST /payments — bắt buộc header `Idempotency-Key` */
+  /**
+   * POST /payments — bắt buộc header `Idempotency-Key`.
+   * Luôn trả 200 (thành công, thất bại, replay) theo Sequence-01b; kết quả nằm ở `success`.
+   */
   @Post()
+  @HttpCode(200)
   pay(
     @CurrentUser() user: AuthUser,
     @Headers('idempotency-key') idempotencyKey: string | undefined,

@@ -1,6 +1,9 @@
 import { useAuthStore } from "@/store/auth";
+import { API_URL } from "./config";
 import type {
+  CartHold,
   CouponCheck,
+  LoyaltyHistoryPage,
   Order,
   OrderPage,
   OrderStatus,
@@ -15,8 +18,7 @@ import type {
   User,
 } from "./types";
 
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+export { API_URL };
 
 export class ApiError extends Error {
   status: number;
@@ -87,6 +89,8 @@ export interface CreateOrderBody {
     toppingIds: number[];
     qty: number;
   }[];
+  /** Giỏ đang giữ tồn kho (xem lib/cart-hold). */
+  cartId?: string;
   couponCode?: string;
   pointsToUse?: number;
   note?: string;
@@ -97,6 +101,16 @@ export const api = {
     list: (p: { category?: string; search?: string; featured?: boolean } = {}) =>
       request<Product[]>(`/products${qs(p)}`),
     get: (id: number) => request<ProductDetail>(`/products/${id}`),
+  },
+  cart: {
+    reservations: (cartId: string) =>
+      request<CartHold[]>(`/cart/${cartId}/reservations`),
+    /** qty = tổng số ly của sản phẩm trong giỏ; 0 = bỏ giữ. */
+    reserve: (cartId: string, productId: number, qty: number) =>
+      request<CartHold>(`/cart/${cartId}/items/${productId}`, {
+        method: "PUT",
+        body: { qty },
+      }),
   },
   promotions: {
     list: () => request<Promotion[]>("/promotions"),
@@ -115,11 +129,28 @@ export const api = {
     }) => request<Session>("/auth/register", { method: "POST", body }),
     login: (body: { email: string; password: string }) =>
       request<Session>("/auth/login", { method: "POST", body }),
+    /** credential = ID token (JWT) từ Google Identity Services. */
+    google: (credential: string) =>
+      request<Session>("/auth/google", { method: "POST", body: { credential } }),
     me: () => request<User>("/auth/me"),
+    /** Chỉ gửi trường cần đổi. phone = null để xóa số điện thoại. */
+    updateProfile: (body: { name?: string; phone?: string | null }) =>
+      request<User>("/auth/profile", { method: "PATCH", body }),
+    changePassword: (body: { currentPassword: string; newPassword: string }) =>
+      request<{ message: string }>("/auth/change-password", {
+        method: "POST",
+        body,
+      }),
     forgotPassword: (email: string) =>
       request<{ message: string }>("/auth/forgot-password", {
         method: "POST",
         body: { email },
+      }),
+    /** Bước 2: mã 6 số nhận qua email + mật khẩu mới. */
+    resetPassword: (body: { email: string; code: string; newPassword: string }) =>
+      request<{ message: string }>("/auth/reset-password", {
+        method: "POST",
+        body,
       }),
   },
   orders: {
@@ -135,6 +166,10 @@ export const api = {
     get: (id: number) => request<Order>(`/orders/${id}`),
     cancel: (id: number) =>
       request<Order>(`/orders/${id}/cancel`, { method: "POST" }),
+  },
+  loyalty: {
+    history: (p: { page?: number; pageSize?: number } = {}) =>
+      request<LoyaltyHistoryPage>(`/loyalty/history${qs(p)}`),
   },
   payments: {
     pay: (

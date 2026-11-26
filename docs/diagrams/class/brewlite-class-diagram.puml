@@ -25,21 +25,34 @@ class User {
   - id: number
   - name: string
   - email: string «unique»
-  - phone?: string
+  - phone?: string «unique»
   - passwordHash: string
   - loyaltyPoints: number
   - createdAt: Date
   --
   + verifyPassword(raw: string): boolean
   + updateProfile(name: string, phone?: string): void
+  + changePassword(current: string, next: string): void
   + addLoyaltyPoints(points: number): void
   + redeemLoyaltyPoints(points: number): boolean
+}
+
+class PasswordResetCode {
+  - id: number
+  - codeHash: string «HMAC, không lưu mã gốc»
+  - attempts: number «tối đa 5»
+  - expiresAt: Date «10 phút»
+  - usedAt?: Date
+  - createdAt: Date
+  --
+  + isUsable(now: Date): boolean
+  + verify(code: string): boolean
 }
 
 class LoyaltyTransaction {
   - id: number
   - type: LoyaltyType
-  - points: number
+  - points: number «luôn dương»
   - createdAt: Date
   --
   + getSignedPoints(): number
@@ -49,6 +62,7 @@ class Promotion {
   - id: number
   - code: string «unique»
   - title: string
+  - description: string
   - type: DiscountType
   - value: number
   - minOrder: number
@@ -62,6 +76,7 @@ class Promotion {
   + isValid(subtotal: number, now: Date): boolean
   + calculateDiscount(subtotal: number): number
   + increaseUsage(): void
+  + releaseUsage(): void
 }
 
 class Order {
@@ -70,6 +85,8 @@ class Order {
   - subtotal: number
   - discount: number
   - pointsUsed: number
+  - pointsEarned: number
+  - pointsAwarded: boolean
   - total: number
   - couponCode?: string
   - note?: string «≤ 200»
@@ -83,6 +100,7 @@ class Order {
   + applyPoints(points: number): void
   + updateStatus(status: OrderStatus): void
   + cancel(): void
+  + refund(): void
 }
 
 class OrderStatusLog {
@@ -98,21 +116,27 @@ class Payment {
   - idempotencyKey: string «unique»
   - amount: number
   - method: PaymentMethod
+  - provider: string «MoMo | VNPay»
   - status: PaymentStatus
   - transactionId?: string
   - failureReason?: string
+  - refundTransactionId?: string
+  - refundedAt?: Date
   - createdAt: Date
   --
   + process(): PaymentStatus
   + markSuccess(transactionId: string): void
   + markFailed(reason: string): void
+  + markRefunding(): void
+  + markRefunded(refundTransactionId: string): void
 }
 
 class OrderItem {
   - id: number
   - productName: string
+  - imageUrl: string
   - size: Size
-  - sugar: number «0|30|50|70|100»
+  - sugar: string «0%|30%|50%|70%|100%»
   - ice: IceLevel
   - toppings: Json «snapshot»
   - unitPrice: number
@@ -125,7 +149,7 @@ class OrderItem {
 
 class Topping {
   - id: number
-  - name: string
+  - name: string «unique»
   - price: number
   - isActive: boolean
   --
@@ -138,7 +162,7 @@ class Product {
   - name: string
   - description: string
   - category: string
-  - basePrice: number
+  - price: number «giá cơ bản, size S»
   - imageUrl: string
   - stock: number
   - isActive: boolean
@@ -147,7 +171,24 @@ class Product {
   --
   + isAvailable(): boolean
   + decreaseStock(qty: number): void
+  + increaseStock(qty: number): void
   + updateBasePrice(price: number): void
+}
+
+' ===== Thành phần nghiệp vụ / dịch vụ ngoài =====
+class OrderStateMachine <<service>> {
+  + canTransition(from: OrderStatus, to: OrderStatus): boolean
+  + assertTransition(from: OrderStatus, to: OrderStatus): void
+}
+
+class MockPaymentGateway <<external service>> {
+  + providerName(method: PaymentMethod): string
+  + charge(orderId: number, amount: number, method: PaymentMethod): ChargeResult
+  + refund(orderId: number, amount: number, transactionId: string): RefundResult
+}
+
+class EventPublisher <<service>> {
+  + publish(event: OrderEvent, payload: OrderEventPayload): void
 }
 
 ' ===== Enumeration =====
@@ -155,6 +196,7 @@ class LoyaltyType <<enumeration>> {
   EARN
   REDEEM
   REFUND
+  REVOKE
 }
 
 class DiscountType <<enumeration>> {
@@ -171,12 +213,14 @@ class PaymentStatus <<enumeration>> {
   PROCESSING
   SUCCESS
   FAILED
+  REFUNDING
+  REFUNDED
 }
 
 class IceLevel <<enumeration>> {
-  NO_ICE
-  LESS_ICE
-  REGULAR
+  Không đá
+  Ít đá
+  Đá bình thường
 }
 
 class Size <<enumeration>> {
@@ -190,17 +234,26 @@ class OrderStatus <<enumeration>> {
   PAID
   PAYMENT_FAILED
   CANCELLED
+  REFUNDED
+}
+
+class OrderEvent <<enumeration>> {
+  order.created
+  order.paid
+  order.cancelled
+  order.refunded
 }
 
 ' ===== Quan hệ =====
 User "1" --> "0..*" LoyaltyTransaction : có sổ điểm
 User "1" --> "0..*" Order : đặt
-LoyaltyTransaction "0..*" --> "0..1" Order : phát sinh từ
-Order "0..*" --> "0..1" Promotion : dùng mã
+User "1" *-- "0..*" PasswordResetCode : mã đặt lại mật khẩu
+LoyaltyTransaction "0..*" --> "1" Order : phát sinh từ
+Order "0..*" ..> "0..1" Promotion : dùng mã\n(tham chiếu qua couponCode)
 Order "1" *-- "1..*" OrderStatusLog : nhật ký trạng thái
 Order "1" --> "0..*" Payment : thanh toán bằng
 Order "1" *-- "1..*" OrderItem : gồm
-OrderItem "0..*" --> "0..*" Topping : chọn kèm
+OrderItem "0..*" ..> "0..*" Topping : chọn kèm\n(snapshot JSON)
 OrderItem "0..*" --> "1" Product : tham chiếu
 
 ' ===== Phụ thuộc kiểu enum =====
@@ -212,5 +265,11 @@ Payment ..> PaymentMethod
 Payment ..> PaymentStatus
 OrderItem ..> IceLevel
 OrderItem ..> Size
+EventPublisher ..> OrderEvent
+
+' ===== Cộng tác với thành phần nghiệp vụ =====
+Order ..> OrderStateMachine : kiểm tra chuyển trạng thái
+Payment ..> MockPaymentGateway : gọi cổng (charge / refund)
+Order ..> EventPublisher : phát sự kiện sau COMMIT
 
 @enduml

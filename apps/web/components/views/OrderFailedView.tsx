@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { btnOutline, btnPrimary, container } from "@/components/ui/classes";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { api, ApiError } from "@/lib/api";
+import { cancelOrder as cancelCartOrder } from "@/lib/cart-hold";
 import { vnd } from "@/lib/format";
 import { useApi, useRequireAuth } from "@/lib/hooks";
 import { newIdempotencyKey } from "@/lib/idempotency";
@@ -86,9 +87,7 @@ export default function OrderFailedView({ id }: { id: number }) {
     setBusy(true);
     setActionError(null);
     try {
-      await api.orders.cancel(order.id);
-      const cart = useCartStore.getState();
-      if (cart.pendingOrderId === order.id) cart.setPendingOrderId(null);
+      await cancelCartOrder(order.id);
       api.auth.me().then(setUser).catch(() => {});
       router.replace("/cart");
     } catch (err) {

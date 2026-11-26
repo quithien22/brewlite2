@@ -12,6 +12,10 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Google Client ID cho nút "Đăng nhập với Google" (nhúng vào bundle lúc build)
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
 # Bật checkbox "Chế độ demo" (mô phỏng thanh toán thất bại) trong bản build production
 ARG NEXT_PUBLIC_ALLOW_MOCK_FAILURE=false
 ENV NEXT_PUBLIC_ALLOW_MOCK_FAILURE=$NEXT_PUBLIC_ALLOW_MOCK_FAILURE

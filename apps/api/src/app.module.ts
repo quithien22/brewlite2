@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
+import { CartModule } from './cart/cart.module';
 import { HealthModule } from './health/health.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { MessagingModule } from './messaging/messaging.module';
@@ -20,6 +21,7 @@ import { PromotionsModule } from './promotions/promotions.module';
     ProductsModule,
     PromotionsModule,
     LoyaltyModule,
+    CartModule,
     OrdersModule,
     PaymentsModule,
     HealthModule,

@@ -48,13 +48,29 @@ model User {
   id            Int      @id @default(autoincrement())
   name          String
   email         String   @unique
-  phone         String?
+  phone         String?  @unique
   passwordHash  String
   loyaltyPoints Int      @default(0)
   createdAt     DateTime @default(now())
 
   orders              Order[]
   loyaltyTransactions LoyaltyTransaction[]
+  passwordResetCodes  PasswordResetCode[]
+}
+
+/// Mã xác nhận 6 số gửi qua email để đặt lại mật khẩu. Chỉ lưu mã đã băm (HMAC), không lưu mã gốc.
+/// Mỗi mã dùng một lần, hết hạn sau 10 phút, nhập sai tối đa 5 lần.
+model PasswordResetCode {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Product {
@@ -71,8 +87,25 @@ model Product {
   createdAt   DateTime @default(now())
 
   orderItems OrderItem[]
+  reservations CartReservation[]
 
   @@index([category])
+}
+
+/// Giữ chỗ tồn kho khi khách thêm món vào giỏ (cartId do trình duyệt sinh, khách chưa cần đăng nhập).
+/// Khi giữ chỗ, Product.stock đã bị trừ; hết hạn (expiresAt) hoặc bỏ khỏi giỏ thì trả lại kho.
+/// Khi tạo đơn, giữ chỗ được chuyển thành đơn (không trừ kho lần hai).
+model CartReservation {
+  id        Int      @id @default(autoincrement())
+  cartId    String
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  qty       Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([cartId, productId])
+  @@index([expiresAt])
 }
 
 model Topping {
