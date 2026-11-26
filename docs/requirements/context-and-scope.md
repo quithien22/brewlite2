@@ -16,7 +16,7 @@ Một cửa hàng cà phê quy mô nhỏ vận hành theo cách truyền thống
 **BrewLite** là ứng dụng web mobile-first (hướng PWA) cho phép khách hàng xem menu, chọn tùy chọn, đặt đồ uống và thanh toán không dùng tiền mặt ngay trên điện thoại, sau đó theo dõi trạng thái và lịch sử đơn hàng.
 
 *   **Luồng nghiệp vụ tối thiểu:** Xem menu → Chọn tùy chọn → Giỏ hàng → Đặt đơn → Thanh toán → Theo dõi đơn.
-*   **Nguyên tắc MVP:** Hệ thống chỉ có một vai trò người dùng là khách hàng. Dữ liệu menu, tồn kho, khuyến mãi được nạp bằng seed/migration. Sau khi thanh toán thành công, đơn ở trạng thái PAID và được xem là đã đặt thành công.
+*   **Nguyên tắc MVP:** Hệ thống chỉ có một vai trò người dùng là khách hàng. Dữ liệu menu, tồn kho, khuyến mãi được nạp bằng seed/migration. Sau khi thanh toán thành công, đơn ở trạng thái PAID và được xem là đã đặt thành công (đơn PAID chỉ có thể chuyển tiếp sang REFUNDED qua phần mở rộng hoàn tiền, xem 1.3.2a).
 
 ## 1.1.3. Mục tiêu sản phẩm
 
@@ -65,18 +65,30 @@ Một cửa hàng cà phê quy mô nhỏ vận hành theo cách truyền thống
 | **Khuyến mãi và điểm** | Áp mã giảm giá, dùng điểm thưởng, tích điểm sau thanh toán |
 | **Đặt đơn** | Tạo đơn PENDING, kiểm tra và giữ tồn kho, tính lại giá ở máy chủ |
 | **Thanh toán** | Ví / Thẻ mô phỏng, chống thanh toán trùng bằng Idempotency-Key, xử lý thất bại và thử lại |
-| **Đơn hàng** | Màn hình xác nhận, lịch sử đơn (lọc, phân trang), chi tiết và nhật ký trạng thái, hủy đơn chưa thanh toán |
+| **Đơn hàng** | Màn hình xác nhận, lịch sử đơn (lọc, phân trang), chi tiết và nhật ký trạng thái, hủy đơn chưa thanh toán (hủy kèm hoàn tiền: xem 1.3.2a) |
 | **Hạ tầng và chất lượng** | Docker Compose, CI/CD, kiểm thử, health check, migration + seed, triển khai production qua HTTPS |
 
 ### 1.3.2. Phạm vi mở rộng và nội dung không thực hiện
+
+#### a) Mở rộng vượt MVP (đã hiện thực)
+
+Hai chức năng dưới đây nằm ngoài đề bài và ngoài phạm vi MVP ban đầu, nhưng nhóm đã hiện thực trong mã nguồn nhằm tăng độ hoàn thiện. Chúng không thay thế yêu cầu Must/Should nào: nếu bỏ chúng đi, luồng chọn sản phẩm → giỏ hàng → thanh toán → xác nhận đơn vẫn đầy đủ. Cả hai đều ở mức mô phỏng (không có cổng thanh toán thật, không gửi email thật).
+
+| Mã | Chức năng | Hành vi | Cài đặt | Kiểm chứng |
+| :--- | :--- | :--- | :--- | :--- |
+| FR-33 | Hủy đơn đã thanh toán và hoàn tiền (mô phỏng) | Khách hủy đơn PAID trong `REFUND_WINDOW_MINUTES` (mặc định 5 phút) kể từ lúc thanh toán; đơn chuyển PAID → REFUNDED. Hệ thống trả lại tồn kho, lượt dùng mã giảm giá, điểm đã dùng và thu hồi điểm đã cộng. Quá hạn trả 422; cổng lỗi trả 502 và đơn vẫn PAID để thử lại; không hủy được đơn của người khác (404) | `POST /payments/refund`; trạng thái `OrderStatus.REFUNDED`, `PaymentStatus.REFUNDING/REFUNDED`, loại sổ điểm `REVOKE`; migration `20261111000000_order_refund`; web: nút hủy trong chi tiết đơn | UT-PAY-12…19, UT-SM-03…05 |
+| FR-32 | Quên mật khẩu (mô phỏng) | `POST /auth/forgot-password` luôn trả cùng một thông báo dù email có đăng ký hay không (không lộ email). Việc "gửi email" chỉ ghi log `[MOCK EMAIL]`; chưa có liên kết hay luồng đặt lại mật khẩu thật | `auth.controller.ts`, `auth.service.ts` (`forgotPassword`), `dto/auth.dto.ts`; web `/forgotpassword` | Chưa có test tự động |
+
+Hệ quả với phần còn lại của tài liệu: trạng thái đơn trong tài liệu và sơ đồ gồm cả REFUNDED; hoàn tiền không làm thay đổi tiêu chí nghiệm thu của MVP.
+
+#### b) Không thực hiện trong MVP
 
 | Nội dung | Ghi chú | Phân loại |
 | :--- | :--- | :--- |
 | Giao diện nhân viên quầy; cập nhật trạng thái pha chế (PREPARING, READY, COMPLETED) | Không có vai trò nhân viên trong MVP | Mở rộng (Won’t) |
 | Quản trị cửa hàng: thêm/sửa/ẩn sản phẩm, chỉnh tồn kho, quản lý khuyến mãi, tài khoản nhân viên | Dữ liệu được nạp bằng seed | Mở rộng (Won’t) |
 | Báo cáo doanh thu, thống kê bán chạy | | Mở rộng (Won’t) |
-| Hoàn tiền đơn đã thanh toán | Đơn PAID là trạng thái cuối trong MVP | Mở rộng (Won’t) |
-| Đặt lại đơn cũ bằng một thao tác; quên mật khẩu qua email | | Mở rộng (Won’t) |
+| Đặt lại đơn cũ bằng một thao tác; đặt lại mật khẩu thật qua email (phần mô phỏng ở 1.3.2a) | | Mở rộng (Won’t) |
 | Giao hàng, nhiều chi nhánh, thanh toán thật, chế độ offline | | Không thực hiện |
 
 ### 1.3.3. Giả định
@@ -91,7 +103,7 @@ Một cửa hàng cà phê quy mô nhỏ vận hành theo cách truyền thống
 | Một điểm thưởng quy đổi 500 đ; mỗi 10.000 đ của tổng đơn sau giảm giá được 1 điểm | Thay đổi hằng số trong cấu hình giá |
 | Tồn kho tính theo từng sản phẩm, không tính nguyên liệu | Cần mô hình công thức, nguyên liệu |
 | Dữ liệu mẫu (menu, topping, khuyến mãi, tài khoản demo) nạp bằng seed, đủ để kiểm thử và nghiệm thu | Bổ sung seed |
-| Nhóm dùng được nền tảng triển khai miễn phí hoặc giá thấp (Render) | Chuyển sang VPS |
+| Nhóm có tài khoản AWS (credit hoặc chi phí thấp) để chạy một máy EC2 (ADR-011) | Chuyển sang VPS khác, vẫn dùng cùng `docker-compose.prod.yml` |
 
 ### 1.3.4. Ràng buộc
 
@@ -111,7 +123,7 @@ Một cửa hàng cà phê quy mô nhỏ vận hành theo cách truyền thống
 | Năm task thực hiện tuần tự; task sau chỉ nghiệm thu khi task trước đã có tạo phẩm trên kho mã nguồn |
 | Mọi thay đổi tài liệu và sơ đồ đi qua commit / pull request, ghi rõ lý do |
 | Pull request không được merge nếu lint, test hoặc build thất bại |
-| Sơ đồ lưu cả tệp nguồn (.mmd, .svg) và bản kết xuất (.png) |
+| Sơ đồ lưu cả tệp nguồn PlantUML (.puml) và bản kết xuất (.svg) trong `docs/diagrams/` |
 
 ### 1.3.5. Rủi ro ban đầu
 
@@ -124,5 +136,5 @@ Một cửa hàng cà phê quy mô nhỏ vận hành theo cách truyền thống
 | Triển khai production thất bại hoặc không truy cập được lúc chấm | Thử triển khai sớm từ Sprint 1, health check, smoke test, quy trình rollback |
 | Lộ secret (`JWT_SECRET`, mật khẩu CSDL) lên repository hoặc log | `.gitignore`, `.env.example`, secret của CI, rà soát trước mỗi lần merge |
 | Tài liệu, sơ đồ và mã nguồn mâu thuẫn nhau | Ma trận truy vết, review chéo, sửa tài liệu cùng pull request với code |
-| Nền tảng miễn phí giới hạn (ngủ đông, hết hạn mức, mất dữ liệu) | Chọn nền tảng có persistent storage, seed tái tạo được |
+| Chi phí AWS vượt dự kiến, một máy EC2 duy nhất là điểm lỗi, mất dữ liệu | AWS Budgets, volume EBS + snapshot + `pg_dump` định kỳ, seed tái tạo được, quy trình rollback bằng đổi tag image (xem `docs/deployment.md`) |
 | Cổng thanh toán mô phỏng chậm hoặc lỗi làm treo thanh toán | Giao dịch PROCESSING có thời hạn 2 phút, xem là thất bại nếu cổng không phản hồi |

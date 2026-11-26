@@ -7,6 +7,7 @@ import { useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import { btnPrimary, input } from "@/components/ui/classes";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 
 export default function Login() {
   const router = useRouter();
@@ -32,6 +33,21 @@ export default function Login() {
     setError(null);
     try {
       const s = await api.auth.login({ email: email.trim(), password });
+      setSession(s.accessToken, s.user);
+      router.replace(target);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Đã có lỗi xảy ra");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onGoogle(credential: string) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const s = await api.auth.google(credential);
       setSession(s.accessToken, s.user);
       router.replace(target);
     } catch (err) {
@@ -128,18 +144,14 @@ export default function Login() {
               <div className="h-px flex-1 bg-line" />
             </div>
 
-            <button
-              type="button"
-              disabled
-              title="Sắp ra mắt"
-              className="flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-lg border border-line bg-white py-3.5 text-sm font-bold text-ink opacity-60"
-            >
-              Đăng nhập với Google (sắp ra mắt)
-            </button>
+            <GoogleSignInButton onCredential={onGoogle} onError={setError} />
 
             <p className="mt-2 text-center text-sm text-muted">
               Chưa có tài khoản?{" "}
-              <Link href="/register" className="font-bold text-brand hover:underline">
+              <Link
+                href={`/register?next=${encodeURIComponent(target)}`}
+                className="font-bold text-brand hover:underline"
+              >
                 Đăng ký ngay
               </Link>
             </p>

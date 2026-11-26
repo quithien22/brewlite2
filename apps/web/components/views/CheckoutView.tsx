@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { CartHoldNotice } from "@/components/ui/CartHold";
 import { btnOutline, btnPrimary, card, container, input } from "@/components/ui/classes";
+import CouponPointsFields from "@/components/ui/CouponPointsFields";
 import OrderSummaryCard from "@/components/ui/OrderSummaryCard";
 import ProductImage from "@/components/ui/ProductImage";
 import { EmptyState, Loading } from "@/components/ui/States";
 import { api, ApiError } from "@/lib/api";
+import { cancelOrder, placeOrder as createOrderFromCart } from "@/lib/cart-hold";
 import { calcCartTotals } from "@/lib/cart-totals";
 import { describeOptions, vnd } from "@/lib/format";
 import { useApi, useRequireAuth } from "@/lib/hooks";
@@ -153,6 +156,7 @@ export default function CheckoutView() {
   if (lines.length === 0 && !activeOrder) {
     return (
       <div className={`${container} py-6 sm:py-10`}>
+        <CartHoldNotice />
         <EmptyState
           title="Chưa có gì để thanh toán"
           description="Giỏ hàng của bạn đang trống. Chọn đồ uống trước nhé."
@@ -170,7 +174,7 @@ export default function CheckoutView() {
     setBusy(true);
     setError(null);
     try {
-      const order = await api.orders.create({
+      const order = await createOrderFromCart({
         items: lines.map((l) => ({
           productId: l.productId,
           size: l.size,
@@ -183,7 +187,6 @@ export default function CheckoutView() {
         pointsToUse: totals.points > 0 ? totals.points : undefined,
         note: note.trim() || undefined,
       });
-      setPendingOrderId(order.id);
       setDismissed(false);
       setCreated(order);
     } catch (err) {
@@ -244,8 +247,7 @@ export default function CheckoutView() {
     setBusy(true);
     setError(null);
     try {
-      await api.orders.cancel(order.id);
-      setPendingOrderId(null);
+      await cancelOrder(order.id);
       setCreated(null);
       setDismissed(true);
       api.auth.me().then(setUser).catch(() => {});
@@ -258,6 +260,12 @@ export default function CheckoutView() {
   }
 
   const payStep = activeOrder !== null;
+  // Chỉ cho sửa mã / điểm khi chưa có đơn nào đang giữ chúng
+  const canEditExtras =
+    !payStep &&
+    !blockedBy &&
+    pending?.status !== "PAID" &&
+    pending?.status !== "PAYMENT_FAILED";
 
   return (
     <div className={`${container} py-6 sm:py-10`}>
@@ -270,8 +278,10 @@ export default function CheckoutView() {
       <p className="mb-5 mt-1 text-sm text-muted sm:mb-6">
         {payStep
           ? "Bước 2/2 · Đơn đã được tạo và giữ hàng cho bạn. Chọn phương thức rồi thanh toán."
-          : "Bước 1/2 · Xem lại đơn, thêm ghi chú nếu cần rồi xác nhận đặt hàng."}
+          : "Bước 1/2 · Xem lại đơn, nhập mã giảm giá, dùng điểm hoặc ghi chú nếu cần rồi xác nhận đặt hàng."}
       </p>
+
+      <CartHoldNotice />
 
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_380px] lg:gap-8">
         <div className="flex flex-col gap-4 sm:gap-6">
@@ -338,6 +348,16 @@ export default function CheckoutView() {
               </div>
             )}
           </section>
+
+          {canEditExtras && (
+            <CouponPointsFields
+              subtotal={totals.subtotal}
+              discount={totals.discount}
+              points={totals.points}
+              maxPoints={totals.maxPoints}
+              disabled={busy}
+            />
+          )}
 
           {payStep && (
             <section className={card}>

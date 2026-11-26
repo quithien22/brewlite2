@@ -56,12 +56,13 @@ repeat
         :Xóa giỏ hàng, hiển thị\nthanh toán thành công;
         |Khách hàng|
         :Nhận xác nhận\n(mã đơn, mã giao dịch);
+        :Nhận đồ uống tại quầy;
         stop
       else (Không)
         |API (NestJS + PostgreSQL)|
         :Payment FAILED,\nOrder PAYMENT_FAILED, ghi log;
         |Giao diện (Next.js)|
-        :Hiển thị lỗi, nút\nThử lại / Hủy đơn;
+        :Giữ nguyên giỏ hàng,\nhiển thị lỗi, nút\nThử lại / Hủy đơn;
       endif
     endif
   endif
@@ -71,6 +72,8 @@ repeat while (Thử lại?) is (Có) not (Không)
 
 |API (NestJS + PostgreSQL)|
 :Hủy đơn: CANCELLED, hoàn\ntồn kho, mã giảm giá, điểm;
+|Giao diện (Next.js)|
+:Quay lại giỏ hàng\n(giỏ vẫn được giữ);
 stop
 
 @enduml

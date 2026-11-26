@@ -8,6 +8,7 @@ import ProductImage from "@/components/ui/ProductImage";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { api, ApiError } from "@/lib/api";
+import { cancelOrder } from "@/lib/cart-hold";
 import {
   describeOptions,
   formatDateTime,
@@ -111,7 +112,7 @@ export default function OrderDetailView({ id }: { id: number }) {
     setBusy(true);
     setActionError(null);
     try {
-      await api.orders.cancel(order.id);
+      await cancelOrder(order.id);
       api.auth.me().then(setUser).catch(() => {});
       reload();
     } catch (err) {

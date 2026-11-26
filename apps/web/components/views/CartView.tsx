@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { CartHoldNotice, CartHoldTimer } from "@/components/ui/CartHold";
 import {
   btnOutline,
   btnPrimary,
@@ -13,6 +14,7 @@ import OrderSummaryCard from "@/components/ui/OrderSummaryCard";
 import ProductImage from "@/components/ui/ProductImage";
 import { EmptyState, Loading } from "@/components/ui/States";
 import { api, ApiError } from "@/lib/api";
+import { changeQty, removeLine } from "@/lib/cart-hold";
 import { calcCartTotals } from "@/lib/cart-totals";
 import { describeOptions, POINT_VALUE, vnd } from "@/lib/format";
 import { useApi } from "@/lib/hooks";
@@ -59,8 +61,6 @@ export default function CartView() {
   const note = useCartStore((s) => s.note);
   const coupon = useCartStore((s) => s.coupon);
   const pointsToUse = useCartStore((s) => s.pointsToUse);
-  const setQty = useCartStore((s) => s.setQty);
-  const remove = useCartStore((s) => s.remove);
   const clear = useCartStore((s) => s.clear);
   const setNote = useCartStore((s) => s.setNote);
   const setCoupon = useCartStore((s) => s.setCoupon);
@@ -76,6 +76,14 @@ export default function CartView() {
     null,
   );
   const [showVoucherModal, setShowVoucherModal] = useState(false);
+  const [needLogin, setNeedLogin] = useState(false);
+  const [qtyError, setQtyError] = useState<string | null>(null);
+
+  async function updateQty(key: string, qty: number) {
+    setQtyError(null);
+    const result = await changeQty(key, qty);
+    if (!result.ok) setQtyError(result.message);
+  }
 
   const { data: activePromos } = useApi(
     () => api.promotions.list().catch(() => []),
@@ -185,6 +193,7 @@ export default function CartView() {
     return (
       <div className={`${container} py-6 sm:py-10`}>
         <h1 className="mb-6 text-2xl font-bold text-ink sm:text-[32px]">Giỏ hàng</h1>
+        <CartHoldNotice />
         {coupon && (
           <div className="mb-6 flex flex-col gap-2 rounded-xl bg-[#E6F3EA] p-4 text-sm text-[#1E7A43] sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -211,8 +220,6 @@ export default function CartView() {
     );
   }
 
-  const checkoutHref = token ? "/checkout" : "/login?next=/checkout";
-
   return (
     <div className={`${container} py-6 sm:py-10`}>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 sm:mb-6">
@@ -232,6 +239,13 @@ export default function CartView() {
         </button>
       </div>
 
+      <CartHoldNotice />
+      {qtyError && (
+        <div role="alert" className="mb-4 rounded-lg bg-[#FBE7E7] px-4 py-3 text-sm text-danger">
+          {qtyError}
+        </div>
+      )}
+
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_380px] lg:gap-8">
         <div className="flex flex-col gap-4 sm:gap-6">
           <ul className="flex flex-col gap-3 sm:gap-4">
@@ -248,6 +262,7 @@ export default function CartView() {
                       <h3 className="font-bold text-ink">{l.name}</h3>
                       <p className="text-xs text-muted">{describeOptions(l)}</p>
                       <p className="mt-1 text-sm text-muted">{vnd(l.unitPrice)} / ly</p>
+                      <CartHoldTimer productId={l.productId} />
                     </div>
                     <p className="font-bold text-brand">{vnd(l.unitPrice * l.qty)}</p>
                   </div>
@@ -256,7 +271,7 @@ export default function CartView() {
                       <button
                         aria-label="Giảm số lượng"
                         disabled={l.qty <= 1}
-                        onClick={() => setQty(l.key, l.qty - 1)}
+                        onClick={() => void updateQty(l.key, l.qty - 1)}
                         className="flex h-10 w-10 items-center justify-center rounded-lg border border-line font-bold text-ink hover:border-brand disabled:opacity-40"
                       >
                         −
@@ -265,14 +280,14 @@ export default function CartView() {
                       <button
                         aria-label="Tăng số lượng"
                         disabled={l.qty >= MAX_QTY}
-                        onClick={() => setQty(l.key, l.qty + 1)}
+                        onClick={() => void updateQty(l.key, l.qty + 1)}
                         className="flex h-10 w-10 items-center justify-center rounded-lg border border-line font-bold text-ink hover:border-brand disabled:opacity-40"
                       >
                         +
                       </button>
                     </div>
                     <button
-                      onClick={() => remove(l.key)}
+                      onClick={() => void removeLine(l.key)}
                       className="flex min-h-[40px] items-center px-2 text-sm font-semibold text-muted hover:text-danger"
                     >
                       Xóa
@@ -491,14 +506,41 @@ export default function CartView() {
             pointsDiscount={totals.pointsDiscount}
             total={totals.total}
           >
-            <Link href={checkoutHref} className={`${btnPrimary} mt-5 w-full py-4`}>
-              Thanh toán · {vnd(totals.total)}
-            </Link>
-            {!token && (
-              <p className="mt-2 text-center text-xs text-muted">
-                Bạn sẽ được yêu cầu đăng nhập trước khi thanh toán.
-              </p>
+            {token ? (
+              <Link href="/checkout" className={`${btnPrimary} mt-5 w-full py-4`}>
+                Thanh toán · {vnd(totals.total)}
+              </Link>
+            ) : (
+              // Chưa đăng nhập: chỉ hiện thông báo, khách tự bấm liên kết để chuyển trang
+              <button
+                type="button"
+                disabled={!authHydrated}
+                onClick={() => setNeedLogin(true)}
+                className={`${btnPrimary} mt-5 w-full py-4`}
+              >
+                Thanh toán · {vnd(totals.total)}
+              </button>
             )}
+            {!token &&
+              (needLogin ? (
+                <div
+                  role="alert"
+                  className="mt-3 rounded-lg bg-[#FFF3D6] px-4 py-3 text-sm text-[#8A5A00]"
+                >
+                  Bạn cần đăng nhập để thanh toán.{" "}
+                  <Link href="/login?next=/checkout" className="font-bold underline">
+                    Đăng nhập
+                  </Link>{" "}
+                  hoặc{" "}
+                  <Link href="/register?next=/checkout" className="font-bold underline">
+                    Đăng ký
+                  </Link>
+                </div>
+              ) : (
+                <p className="mt-2 text-center text-xs text-muted">
+                  Bạn cần đăng nhập trước khi thanh toán.
+                </p>
+              ))}
           </OrderSummaryCard>
         </div>
       </div>

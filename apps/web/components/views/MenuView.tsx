@@ -7,156 +7,6 @@ import { container, input } from "@/components/ui/classes";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
-import type { Product } from "@/lib/types";
-
-const DEFAULT_PRODUCTS: Product[] = [
-  {
-    id: 1,
-    name: "Cà phê sữa",
-    description: "Cà phê phin đậm vị, hòa cùng sữa đặc béo ngọt.",
-    category: "Cà phê",
-    price: 35000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=800&q=80",
-    stock: 80,
-    inStock: true,
-    isFeatured: true,
-  },
-  {
-    id: 2,
-    name: "Americano",
-    description: "Espresso pha loãng, hậu vị sạch và thanh.",
-    category: "Cà phê",
-    price: 40000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80",
-    stock: 60,
-    inStock: true,
-    isFeatured: false,
-  },
-  {
-    id: 3,
-    name: "Cappuccino",
-    description: "Espresso, sữa nóng và lớp bọt sữa mịn như mây.",
-    category: "Cà phê",
-    price: 45000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1534778101976-62847782c213?auto=format&fit=crop&w=800&q=80",
-    stock: 60,
-    inStock: true,
-    isFeatured: true,
-  },
-  {
-    id: 4,
-    name: "Latte",
-    description: "Espresso êm dịu với nhiều sữa tươi, vị ngọt tự nhiên.",
-    category: "Cà phê",
-    price: 48000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=800&q=80",
-    stock: 50,
-    inStock: true,
-    isFeatured: false,
-  },
-  {
-    id: 5,
-    name: "Bạc xỉu",
-    description: "Nhiều sữa, ít cà phê — ngọt dịu cho buổi chiều.",
-    category: "Cà phê",
-    price: 38000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=800&q=80",
-    stock: 70,
-    inStock: true,
-    isFeatured: false,
-  },
-  {
-    id: 6,
-    name: "Trà đào",
-    description: "Trà đen thơm, đào miếng giòn mát, vị chua ngọt cân bằng.",
-    category: "Trà trái cây",
-    price: 39000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1556881286-fc6915169721?auto=format&fit=crop&w=800&q=80",
-    stock: 70,
-    inStock: true,
-    isFeatured: true,
-  },
-  {
-    id: 7,
-    name: "Trà vải",
-    description: "Trà hoa nhài kết hợp vải thiều tươi mát.",
-    category: "Trà trái cây",
-    price: 39000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=800&q=80",
-    stock: 50,
-    inStock: true,
-    isFeatured: false,
-  },
-  {
-    id: 8,
-    name: "Trà chanh mật ong",
-    description: "Chanh tươi, mật ong và trà xanh — nhẹ người, tỉnh táo.",
-    category: "Trà trái cây",
-    price: 35000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80",
-    stock: 50,
-    inStock: true,
-    isFeatured: false,
-  },
-  {
-    id: 9,
-    name: "Trà sữa trân châu",
-    description: "Trà sữa đậm vị cùng trân châu đen dai mềm.",
-    category: "Trà sữa",
-    price: 42000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=800&q=80",
-    stock: 90,
-    inStock: true,
-    isFeatured: true,
-  },
-  {
-    id: 10,
-    name: "Trà sữa matcha",
-    description: "Matcha Nhật xay mịn, béo nhẹ và thơm dịu.",
-    category: "Trà sữa",
-    price: 48000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=800&q=80",
-    stock: 40,
-    inStock: true,
-    isFeatured: false,
-  },
-  {
-    id: 11,
-    name: "Cacao đá xay",
-    description: "Cacao đậm đà xay lạnh, phủ kem tươi.",
-    category: "Đá xay",
-    price: 52000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=800&q=80",
-    stock: 30,
-    inStock: true,
-    isFeatured: false,
-  },
-  {
-    id: 12,
-    name: "Cold brew cam",
-    description:
-      "Cà phê ủ lạnh 18 giờ với lát cam tươi. (Hết hàng — dùng để thử trạng thái hết hàng)",
-    category: "Cà phê",
-    price: 52000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1770282184909-955dd7764a37?auto=format&fit=crop&w=800&q=80",
-    stock: 0,
-    inStock: false,
-    isFeatured: false,
-  },
-];
-
 export default function MenuView() {
   const router = useRouter();
   const params = useSearchParams();
@@ -173,10 +23,8 @@ export default function MenuView() {
     [],
   );
 
-  const products = useMemo(() => {
-    if (data && data.length > 0) return data;
-    return DEFAULT_PRODUCTS;
-  }, [data]);
+  // Chỉ dùng dữ liệu thật từ GET /products (Sequence-01a), không có danh sách dự phòng viết cứng
+  const products = useMemo(() => data ?? [], [data]);
 
   const categories = useMemo(
     () => [...new Set(products.map((p) => p.category))],
@@ -372,16 +220,25 @@ export default function MenuView() {
       </div>
 
       {/* Hiển thị số lượng món tìm thấy */}
-      <div className="mb-4 flex items-center justify-between text-xs text-muted font-medium">
-        <span>
-          Đang hiển thị <strong className="text-ink">{visible.length}</strong> món đồ uống
-        </span>
-      </div>
+      {data && (
+        <div className="mb-4 flex items-center justify-between text-xs text-muted font-medium">
+          <span>
+            Đang hiển thị <strong className="text-ink">{visible.length}</strong> món đồ uống
+          </span>
+        </div>
+      )}
 
-      {loading && !data && products.length === 0 ? (
+      {loading && !data ? (
         <Loading label="Đang tải thực đơn..." />
-      ) : error && !data && products.length === 0 ? (
+      ) : error && !data ? (
         <ErrorState error={error} onRetry={reload} />
+      ) : data && data.length === 0 ? (
+        <EmptyState
+          title="Thực đơn đang trống"
+          description="Hiện cửa hàng chưa có đồ uống nào đang bán. Bạn quay lại sau nhé."
+          href="/"
+          action="Về trang chủ"
+        />
       ) : visible.length === 0 ? (
         <EmptyState
           title="Không tìm thấy đồ uống phù hợp"

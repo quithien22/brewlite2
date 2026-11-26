@@ -28,7 +28,16 @@ start
 
 if (Còn hàng?) then (Có)
   |Khách hàng|
-  :Thêm vào giỏ hàng\n(lưu trên trình duyệt);
+  :Thêm vào giỏ hàng\n(lưu trên trình duyệt,\nchưa cần đăng nhập);
+  if (Có mã giảm giá?) then (Có)
+    :Nhập / chọn mã\ntrong giỏ hàng;
+    |API (NestJS + PostgreSQL)|
+    :POST /promotions/validate,\nkiểm tra mã;
+    |Giao diện (Next.js)|
+    :Hiển thị mức giảm hoặc\nlý do mã không hợp lệ;
+  else (Không)
+  endif
+  |Khách hàng|
   :Nhấn "Đặt hàng";
 
   |Giao diện (Next.js)|
@@ -39,7 +48,7 @@ if (Còn hàng?) then (Có)
   endif
 
   |Khách hàng|
-  :Xem lại đơn, nhập mã / dùng điểm /\nghi chú, "Xác nhận đặt hàng";
+  :Xem lại đơn, đổi mã / dùng điểm /\nghi chú, "Xác nhận đặt hàng";
 
   |Giao diện (Next.js)|
   :POST /orders\n(Bearer JWT);
