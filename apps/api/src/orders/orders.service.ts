@@ -6,6 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { claimReservations } from '../cart/reservations';
 import { PAYMENT_PROCESSING_TTL_MS } from '../common/constants';
 import { POINT_VALUE, calcUnitPrice, earnedPoints } from '../common/pricing';
 import { LoyaltyService } from '../loyalty/loyalty.service';
@@ -112,8 +113,11 @@ export class OrdersService {
           });
         }
 
-        // Kiểm tra và giữ tồn kho (409 nếu thiếu hàng)
-        await reserveStock(tx, needs);
+        // Dùng lại phần giỏ hàng đã giữ; chỉ trừ thêm phần còn thiếu (409 nếu thiếu hàng)
+        const missing = dto.cartId
+          ? await claimReservations(tx, dto.cartId, needs)
+          : needs;
+        await reserveStock(tx, missing);
 
         // Mã khuyến mãi: kiểm tra lại + tăng lượt dùng. Hết hạn / hết lượt tại thời điểm đặt → 422 (E4)
         let discount = 0;

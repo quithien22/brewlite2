@@ -7,6 +7,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -54,6 +55,11 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
+
+  /** Giỏ đang giữ tồn kho: đơn dùng lại phần đã giữ, không trừ kho lần hai. */
+  @IsOptional()
+  @IsUUID()
+  cartId?: string;
 
   @IsOptional()
   @IsString()

@@ -8,6 +8,8 @@ Giỏ hàng chỉ cần thiết trước khi đặt đơn; không muốn thêm b
 ## Quyết định
 Giỏ hàng lưu bằng **Zustand + localStorage** (gồm ghi chú, mã đã áp, điểm chọn). Khi đặt đơn, client chỉ gửi sản phẩm, tùy chọn, số lượng, mã, điểm; **máy chủ tính lại toàn bộ giá** từ CSDL, bỏ qua mọi giá do client gửi.
 
+Nội dung giỏ vẫn ở trình duyệt, nhưng máy chủ giữ tồn kho theo `cartId` trong 15 phút (xem ADR-007).
+
 ## Phương án đã cân nhắc
 - Giỏ hàng lưu trong CSDL: đồng bộ nhiều thiết bị nhưng thêm bảng, API và dọn dữ liệu.
 

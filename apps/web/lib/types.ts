@@ -148,6 +148,35 @@ export interface Session {
   user: User;
 }
 
+export type LoyaltyType = "EARN" | "REDEEM" | "REFUND" | "REVOKE";
+
+export interface LoyaltyEntry {
+  id: number;
+  type: LoyaltyType;
+  /** Có dấu: cộng là dương, trừ là âm. */
+  points: number;
+  orderId: number;
+  orderCode: string;
+  createdAt: string;
+}
+
+export interface LoyaltyHistoryPage {
+  balance: number;
+  items: LoyaltyEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/** Giữ tồn kho của một sản phẩm trong giỏ. */
+export interface CartHold {
+  productId: number;
+  qty: number;
+  /** Thời gian còn lại tính từ lúc máy chủ trả lời. */
+  expiresInMs: number;
+}
+
 export interface CartLine {
   key: string;
   productId: number;

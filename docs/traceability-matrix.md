@@ -33,7 +33,7 @@ Cách đọc: ô `—` nghĩa là **chưa có**. Các ô này là khoảng trố
 | Sequence-01b | `docs/diagrams/sequence/sequence-checkout-01b.puml` / `.svg` (POST /payments) | Có |
 | Activity-01a | `docs/diagrams/activity/activity-01a-tu-xem-menu-den-tao-don-hang.puml` / `.svg` | Có |
 | Activity-01b | `docs/diagrams/activity/activity-01b-thanh-toan-xac-nhan-don-hang.puml` / `.svg` | Có |
-| Class-01 | `docs/diagrams/class/class-domain-model.puml` / `.svg` (có `REFUNDED`, `REVOKE`) | Có |
+| Class-01 | `docs/diagrams/class/brewlite-class-diagram.puml` / `.svg` (có `REFUNDED`, `REVOKE`) | Có |
 | UseCase-General | `docs/diagrams/usecase/usecase-tong-quat.puml` / `.svg` | Có (còn vẽ UC-06, UC-07 ngoài phạm vi MVP, xem mục 6) |
 | UseCase-UC01, UseCase-UC02 | `docs/diagrams/usecase/usecase-uc01-dat-thanh-toan.puml`, `brewlite-usecase-uc02-tai-khoan-xac-thuc.puml` (+ `.svg`) | Có |
 | Deployment-01 | `docs/diagrams/deployment-production.puml` / `.svg` | **Chưa có trong repo** |

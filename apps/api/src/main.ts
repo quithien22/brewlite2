@@ -18,7 +18,7 @@ async function bootstrap() {
       .split(',')
       .map((o) => o.trim()),
     allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   // Ghi log hoạt động ra stdout (Render Logs). Chỉ ghi method, đường dẫn, mã trạng thái, thời gian;

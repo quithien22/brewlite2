@@ -52,6 +52,14 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-brewlite}:${POSTGRES_PASSWORD:-brewlite}@db:5432/${POSTGRES_DB:-brewlite}?schema=public
       JWT_SECRET: ${JWT_SECRET:-doi-thanh-chuoi-bi-mat-dai-va-ngau-nhien}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Gửi email mã đặt lại mật khẩu (để trống SMTP_HOST thì chỉ in email ra log)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
       # Mật khẩu RabbitMQ nên chỉ gồm chữ và số (nếu có ký tự đặc biệt phải URL-encode trong URL này)
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-brewlite}:${RABBITMQ_PASSWORD:-brewlite}@rabbitmq:5672
       PORT: "4000"
@@ -67,6 +75,7 @@ services:
       args:
         # Trình duyệt gọi trực tiếp backend nên dùng địa chỉ localhost
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
         # Hiện checkbox "Chế độ demo" ở trang thanh toán (nhúng vào bundle lúc build)
         NEXT_PUBLIC_ALLOW_MOCK_FAILURE: ${NEXT_PUBLIC_ALLOW_MOCK_FAILURE:-true}
     restart: unless-stopped

@@ -42,15 +42,87 @@ participant "NestJS API" as API
 database "PostgreSQL" as DB
 
 activate C
-C -> UI : Nhấn "Đặt hàng" từ giỏ hàng
+C -> UI : Mở trang Thực đơn
 activate UI
-UI -> UI : Kiểm tra có JWT trong phiên
-opt Chưa đăng nhập
-  UI --> C : Chuyển sang trang đăng nhập (UC-02)
+UI -> API : GET /products
+activate API
+API -> DB : Truy vấn sản phẩm đang bán
+DB --> API : Danh sách sản phẩm (giá, tồn kho)
+API --> UI : 200 (danh sách sản phẩm)
+deactivate API
+UI --> C : Hiển thị thực đơn
+
+C -> UI : Chọn đồ uống
+UI -> API : GET /products/:id
+activate API
+API -> DB : Đọc sản phẩm, topping
+DB --> API : Chi tiết sản phẩm, topping
+API --> UI : 200 (sản phẩm, size, topping, đường, đá)
+deactivate API
+UI --> C : Hiển thị chi tiết, giá theo tùy chọn
+
+C -> UI : Chọn size, topping, đường, đá, số lượng
+break Hết hàng
+  UI --> C : Báo hết hàng, khóa nút "Thêm vào giỏ hàng"
 end
 
-C -> UI : Xem lại đơn, nhập mã, điểm, ghi chú, xác nhận
-UI -> API : POST /orders\n(Bearer JWT, items, couponCode, pointsToUse, note)
+C -> UI : Thêm vào giỏ hàng (chưa cần đăng nhập)
+UI -> API : PUT /cart/:cartId/items/:productId\n(qty)
+activate API
+API -> DB : Trả kho các giữ chỗ quá hạn
+API -> DB : BEGIN transaction
+activate DB
+API -> DB : Kiểm tra tồn kho, trừ phần thêm mới\n(optimistic locking theo version)
+break Không đủ tồn kho
+  API -> DB : ROLLBACK
+  API --> UI : 409 Conflict
+  UI --> C : Báo hết hàng / số lượng còn lại,\nkhông thêm vào giỏ
+end
+API -> DB : Lưu CartReservation\n(expiresAt = lần giữ đầu + 15 phút)
+API -> DB : COMMIT
+DB --> API : OK
+deactivate DB
+API --> UI : 200 (productId, qty, expiresInMs)
+deactivate API
+UI -> UI : Lưu giỏ trên trình duyệt,\nđếm ngược thời gian giữ hàng
+UI --> C : Đã thêm vào giỏ, giữ hàng 15 phút
+
+opt Khách đổi số lượng / xóa món trong giỏ
+  C -> UI : Tăng, giảm hoặc xóa món
+  UI -> API : PUT /cart/:cartId/items/:productId\n(qty mới, 0 = bỏ giữ)
+  activate API
+  API -> DB : Trừ / trả kho phần chênh lệch,\ncập nhật CartReservation (không gia hạn)
+  DB --> API : OK
+  API --> UI : 200 (qty, expiresInMs) / 409 nếu thiếu hàng
+  deactivate API
+  UI --> C : Cập nhật giỏ hoặc báo lỗi
+end
+
+break Quá 15 phút chưa đặt hàng
+  API -> DB : (Job mỗi 30 giây) Xóa CartReservation\nquá hạn, stock = stock + qty
+  UI -> UI : Hết đếm ngược, xóa món khỏi giỏ
+  UI --> C : Thông báo hết thời gian giữ hàng,\nmón đã bị xóa khỏi giỏ
+end
+
+opt Khách áp mã giảm giá
+  C -> UI : Nhập / chọn mã trong giỏ hàng
+  UI -> API : POST /promotions/validate\n(code, subtotal)
+  activate API
+  API -> DB : Tìm mã khuyến mãi
+  DB --> API : Thông tin mã
+  API --> UI : 200 (valid, discount, message)
+  deactivate API
+  UI --> C : Hiển thị mức giảm hoặc lý do không hợp lệ
+end
+
+C -> UI : Nhấn "Đặt hàng" từ giỏ hàng
+UI -> UI : Kiểm tra có JWT trong phiên
+opt Chưa đăng nhập
+  UI --> C : Hiển thị thông báo cần đăng nhập (UC-02)
+end
+
+C -> UI : Xem lại đơn, đổi mã, dùng điểm, ghi chú, xác nhận
+UI -> API : POST /orders\n(Bearer JWT, cartId, items, couponCode,\npointsToUse, note)
 activate API
 API -> API : Xác thực JWT, validate DTO (whitelist)
 
@@ -62,19 +134,22 @@ else Hợp lệ
   activate DB
   API -> DB : Đọc sản phẩm, topping, tính lại giá,\nkiểm tra mã, điểm
   DB --> API : Giá, tồn kho, mã, điểm
+  API -> DB : Dùng lại phần đã giữ: xóa CartReservation\n(không trừ kho lần hai)
+  API -> DB : Chỉ trừ thêm phần còn thiếu\n(trả lại phần giữ dư)
   alt Thiếu hàng hoặc mã / điểm không hợp lệ
-    API -> DB : ROLLBACK
+    API -> DB : ROLLBACK (giữ chỗ được giữ nguyên)
     API --> UI : 409 Conflict / 422 Unprocessable
     UI --> C : Báo hết hàng / mã không hợp lệ, quay lại giỏ
   else Đủ điều kiện
-    API -> DB : UPDATE stock = stock - qty WHERE stock >= qty
     API -> DB : INSERT Order PENDING, OrderItem, log;\nusedCount + 1; LoyaltyTransaction REDEEM
     API -> DB : COMMIT
     DB --> API : OK
     deactivate DB
     API --> UI : 201 Created (orderId, subtotal, discount, total)
     deactivate API
+    UI -> UI : Bỏ đếm ngược giỏ (đơn đang giữ kho)
     UI --> C : Hiển thị trang thanh toán (tổng tiền)
+    note over API, DB : Đơn PENDING chưa thanh toán quá 15 phút\ntự hủy và hoàn kho (FR-27)
     deactivate UI
     deactivate C
   end
